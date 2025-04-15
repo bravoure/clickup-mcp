@@ -80,6 +80,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
+        name: "create-task-comment",
+        description: "Create a comment on a task",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task_id: { type: "string", description: "The ID of the task" },
+            comment_text: { type: "string", description: "The text content of the comment" }
+          },
+          required: ["task_id", "comment_text"]
+        }
+      },
+      {
         name: "get-lists",
         description: "Get all lists in a folder",
         inputSchema: {
@@ -312,6 +324,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Error getting task comments: ${error.message}. Please check if the task ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "create-task-comment") {
+      try {
+        console.log(`Creating comment for task ${args.task_id}`);
+        console.log(`Comment text: ${args.comment_text}`);
+
+        const result = await clickupClient.createTaskComment(args.task_id, args.comment_text);
+        console.log(`Comment created successfully`);
+
+        return {
+          toolResult: result,
+          content: [
+            {
+              type: "text",
+              text: `Successfully added comment to task ${args.task_id}:\n\n"${args.comment_text}"`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error creating task comment: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error creating task comment: ${error.message}. Please check if the task ID is correct.`
             }
           ]
         };

@@ -391,6 +391,36 @@ export class ClickUpClient {
   }
 
   /**
+   * Create a comment on a task
+   */
+  async createTaskComment(taskId, commentText) {
+    try {
+      // Log the request details
+      const url = `/task/${taskId}/comment`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+      console.log(`Comment text: ${commentText}`);
+
+      // Prepare the request data
+      const data = {
+        comment_text: commentText
+      };
+
+      // Make the API request
+      const response = await this.client.post(url, data);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data;
+    } catch (error) {
+      console.error(`API error in createTaskComment: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error creating task comment: ${error.message}`);
+    }
+  }
+
+  /**
    * Update an existing task
    */
   async updateTask(taskId, taskData) {

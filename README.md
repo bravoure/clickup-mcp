@@ -214,6 +214,7 @@ To find the necessary IDs for using the tools, you can use the following methods
 | create-task-attachment | Upload an attachment to a task |
 | download-task-attachments | Download all attachments from a task |
 | get-task-comments | Retrieve all comments from a task |
+| create-task-comment | Create a comment on a task |
 
 ## Features
 
