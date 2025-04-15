@@ -15,7 +15,7 @@ Thank you for your interest in contributing to the ClickUp MCP Server! Here are 
    npm install
    ```
 
-3. Create a `.env` file with your ClickUp API token:
+3. Create a `.env` file with your ClickUp API token (needed for local development):
    ```bash
    echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
    ```

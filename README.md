@@ -53,16 +53,24 @@ To find the necessary IDs for using the tools, you can use the following methods
    npm install
    ```
 
-3. Create a `.env` file with your ClickUp API token:
+3. Create a `.env` file with your ClickUp API token (only needed if you're running the server locally):
    ```
    echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
    ```
 
+   Note: If you're using Claude Desktop or Augment, you don't need this file as you'll provide the API token directly in the MCP configuration.
+
 ## Usage
 
-### Option 1: Docker (recommended)
+### Option 1: Integration with AI Assistants (recommended)
 
-The easiest way to use the server is via Docker. The Docker image is automatically built and published to GitHub Container Registry.
+The easiest way to use the server is to integrate it directly with your AI assistant (Claude Desktop or Augment). See the [Integration with AI Assistants](#integration-with-ai-assistants) section below for detailed instructions.
+
+With this approach, you don't need to manually run the Docker container or set environment variables - the AI assistant will handle this for you.
+
+### Option 2: Standalone Docker
+
+If you want to run the server as a standalone Docker container (not through an AI assistant), you can use the following commands:
 
 ```bash
 # Pull the image
@@ -75,7 +83,9 @@ docker run -d \
   ghcr.io/bravoure/clickup-mcp:latest
 ```
 
-### Option 2: Run locally
+Note: This approach is only needed if you're using the server directly, not through Claude Desktop or Augment.
+
+### Option 3: Run locally
 
 If you want to run the server locally, follow these steps:
 
@@ -87,14 +97,14 @@ cd clickup-mcp
 # Install dependencies
 npm install
 
-# Create a .env file with your ClickUp API token
+# Create a .env file with your ClickUp API token (only needed for local development)
 echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
 
 # Start the server
 npm start
 ```
 
-### Option 3: Docker Compose
+### Option 4: Docker Compose
 
 You can also use Docker Compose to start the container:
 
@@ -103,7 +113,7 @@ You can also use Docker Compose to start the container:
 git clone https://github.com/bravoure/clickup-mcp.git
 cd clickup-mcp
 
-# Create a .env file with your ClickUp API token
+# Create a .env file with your ClickUp API token (needed for Docker Compose)
 echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
 
 # Start the container
