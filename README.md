@@ -1,129 +1,124 @@
 # ClickUp MCP Server
 
-Een Model Context Protocol (MCP) server voor ClickUp integratie, waarmee AI-assistenten zoals Claude kunnen communiceren met ClickUp.
+A Model Context Protocol (MCP) server for ClickUp integration, allowing AI assistants like Claude to communicate with ClickUp.
 
-## Functionaliteiten
+## Features
 
-Deze MCP server biedt de volgende tools voor interactie met ClickUp:
+This MCP server provides the following tools for interacting with ClickUp:
 
-- **Tasks**: Ophalen, aanmaken en bijwerken van taken
-- **Lists**: Ophalen van lijsten en hun statussen
-- **Attachments**: Uploaden en downloaden van bijlagen bij taken
-- **Comments**: Ophalen van opmerkingen bij taken
+- **Tasks**: Retrieve, create, and update tasks
+- **Lists**: Retrieve lists and their statuses
+- **Attachments**: Upload and download task attachments
+- **Comments**: Retrieve task comments
 
-## Vereisten
+## Requirements
 
-- Node.js 18 of hoger
-- Een ClickUp account met een API token
-- Docker en Docker Compose (voor containerisatie)
+- Node.js 18 or higher
+- A ClickUp account with an API token
+- Docker and Docker Compose (for containerization)
 
-## ClickUp API Token verkrijgen
+## Getting a ClickUp API Token
 
-Om deze MCP server te gebruiken, heb je een ClickUp API token nodig. Volg deze stappen om een token te verkrijgen:
+To use this MCP server, you need a ClickUp API token. Follow these steps to obtain one:
 
-1. Log in op je ClickUp account
-2. Klik op je avatar in de rechterbovenhoek
-3. Selecteer "Settings"
-4. Klik op "Apps" in de zijbalk
-5. Onder "API Token", klik op "Generate" of "Regenerate"
-6. Kopieer de token en bewaar deze veilig
+1. Log in to your ClickUp account
+2. Click on your avatar in the top-right corner
+3. Select "Settings"
+4. Click on "Apps" in the sidebar
+5. Under "API Token", click "Generate" or "Regenerate"
+6. Copy the token and store it securely
 
-## Workspace ID vinden
+## Finding Workspace and List IDs
 
-Om je Workspace ID te vinden, kun je een van de volgende methoden gebruiken:
+To find the necessary IDs for using the tools, you can use the following methods:
 
-1. **Via de URL**: Open ClickUp in je browser en kijk naar de URL. Het zal er ongeveer zo uitzien: `https://app.clickup.com/WORKSPACE_ID/v/l/li/LIST_ID`. Het nummer na `app.clickup.com/` is je Workspace ID.
+1. **Workspace ID via URL**: Open ClickUp in your browser and look at the URL. It will look something like: `https://app.clickup.com/WORKSPACE_ID/v/l/li/LIST_ID`. The number after `app.clickup.com/` is your Workspace ID.
 
-2. **Via de API**: Gebruik de `get-workspaces` tool van deze MCP server om alle workspaces op te halen.
+2. **Via the API**: Use the tools provided by this MCP server to retrieve the necessary IDs:
+   - `get-workspaces`: Retrieves all workspaces
+   - `get-spaces`: Retrieves all spaces in a workspace
+   - `get-lists`: Retrieves all lists in a folder
+   - `get-folderless-lists`: Retrieves all lists that are not in any folder
 
-## Installatie
+## Installation
 
-1. Clone deze repository:
+1. Clone this repository:
    ```
    git clone <repository-url>
    cd clickup-mcp-server
    ```
 
-2. Installeer de dependencies:
+2. Install dependencies:
    ```
    npm install
    ```
 
-3. Maak een `.env` bestand aan op basis van het `.env.example` bestand:
+3. Create a `.env` file with your ClickUp API token:
    ```
-   cp .env.example .env
-   ```
-
-4. Vul je ClickUp API token in het `.env` bestand in:
-   ```
-   CLICKUP_API_TOKEN=your_api_token_here
-   DEFAULT_WORKSPACE_ID=your_default_workspace_id_here
+   echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
    ```
 
-## Gebruik
+## Usage
 
-### Optie 1: Docker (aanbevolen)
+### Option 1: Docker (recommended)
 
-De eenvoudigste manier om de server te gebruiken is via Docker. De Docker image wordt automatisch gebouwd en gepubliceerd naar GitHub Container Registry.
+The easiest way to use the server is via Docker. The Docker image is automatically built and published to GitHub Container Registry.
 
 ```bash
-# Pull de image
+# Pull the image
 docker pull ghcr.io/bravoure/clickup-mcp:latest
 
-# Start de container met je ClickUp API token
+# Start the container with your ClickUp API token
 docker run -d \
   -e CLICKUP_API_TOKEN=your_api_token_here \
-  -e DEFAULT_WORKSPACE_ID=your_workspace_id_here \
   --name clickup-mcp \
   ghcr.io/bravoure/clickup-mcp:latest
 ```
 
-### Optie 2: Lokaal draaien
+### Option 2: Run locally
 
-Als je de server lokaal wilt draaien, volg dan deze stappen:
+If you want to run the server locally, follow these steps:
 
 ```bash
-# Clone de repository
+# Clone the repository
 git clone https://github.com/bravoure/clickup-mcp.git
 cd clickup-mcp
 
-# Installeer dependencies
+# Install dependencies
 npm install
 
-# Maak een .env bestand aan met je ClickUp API token
+# Create a .env file with your ClickUp API token
 echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
-echo "DEFAULT_WORKSPACE_ID=your_workspace_id_here" >> .env
 
-# Start de server
+# Start the server
 npm start
 ```
 
-### Optie 3: Docker Compose
+### Option 3: Docker Compose
 
-Je kunt ook Docker Compose gebruiken om de container te starten:
+You can also use Docker Compose to start the container:
 
 ```bash
-# Clone de repository
+# Clone the repository
 git clone https://github.com/bravoure/clickup-mcp.git
 cd clickup-mcp
 
-# Maak een .env bestand aan met je ClickUp API token
+# Create a .env file with your ClickUp API token
 echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
-echo "DEFAULT_WORKSPACE_ID=your_workspace_id_here" >> .env
 
-# Start de container
+# Start the container
 docker-compose up -d
 ```
 
-## Integratie met AI-assistenten
+## Integration with AI Assistants
 
-### Integratie met Claude Desktop
+### Integration with Claude Desktop
 
-Om deze MCP server te gebruiken met Claude Desktop:
+To use this MCP server with Claude Desktop:
 
-1. Zorg ervoor dat je Claude Desktop hebt geïnstalleerd
-2. Open het configuratiebestand op `~/Library/Application Support/Claude/claude_desktop_config.json`
-3. Voeg de volgende configuratie toe:
+1. Make sure you have Claude Desktop installed
+2. Open the configuration file at `~/Library/Application Support/Claude/claude_desktop_config.json`
+3. Add the following configuration:
 
 ```json
 {
@@ -135,8 +130,6 @@ Om deze MCP server te gebruiken met Claude Desktop:
         "--rm",
         "-e",
         "CLICKUP_API_TOKEN=your_api_token_here",
-        "-e",
-        "DEFAULT_WORKSPACE_ID=your_default_workspace_id_here",
         "ghcr.io/bravoure/clickup-mcp:latest"
       ]
     }
@@ -144,17 +137,17 @@ Om deze MCP server te gebruiken met Claude Desktop:
 }
 ```
 
-4. Herstart Claude Desktop
+4. Restart Claude Desktop
 
-### Integratie met Augment
+### Integration with Augment
 
-Om deze MCP server te gebruiken met Augment in VS Code:
+To use this MCP server with Augment in VS Code:
 
 1. Open VS Code
-2. Druk op Cmd/Ctrl+Shift+P
-3. Typ "Augment: Edit Settings"
-4. Klik op "Edit in settings.json"
-5. Voeg de volgende configuratie toe:
+2. Press Cmd/Ctrl+Shift+P
+3. Type "Augment: Edit Settings"
+4. Click on "Edit in settings.json"
+5. Add the following configuration:
 
 ```json
 "augment.advanced": {
@@ -166,7 +159,6 @@ Om deze MCP server te gebruiken met Augment in VS Code:
                 "run",
                 "--rm",
                 "-e", "CLICKUP_API_TOKEN=your_api_token_here",
-                "-e", "DEFAULT_WORKSPACE_ID=your_workspace_id_here",
                 "ghcr.io/bravoure/clickup-mcp:latest"
             ]
         }
@@ -174,22 +166,22 @@ Om deze MCP server te gebruiken met Augment in VS Code:
 }
 ```
 
-6. Sla de wijzigingen op en herstart VS Code
+6. Save the changes and restart VS Code
 
-## Beschikbare Tools
+## Available Tools
 
-| Tool | Beschrijving |
+| Tool | Description |
 |------|-------------|
-| get-task | Haal een specifieke taak op via ID (inclusief comments en bijlagen) |
-| create-task | Maak een nieuwe taak aan in een lijst |
-| update-task | Werk een bestaande taak bij (inclusief status wijzigen) |
-| get-lists | Haal alle lijsten in een folder op |
-| get-folderless-lists | Haal alle lijsten op die niet in een folder zitten |
-| get-list-statuses | Haal alle statussen van een lijst op |
-| create-task-attachment | Upload een bijlage naar een taak |
-| download-task-attachments | Download alle bijlagen van een taak |
-| get-task-comments | Haal alle opmerkingen van een taak op |
+| get-task | Retrieve a specific task by ID (including comments and attachments) |
+| create-task | Create a new task in a list |
+| update-task | Update an existing task (including changing status) |
+| get-lists | Retrieve all lists in a folder |
+| get-folderless-lists | Retrieve all lists that are not in any folder |
+| get-list-statuses | Retrieve all statuses for a list |
+| create-task-attachment | Upload an attachment to a task |
+| download-task-attachments | Download all attachments from a task |
+| get-task-comments | Retrieve all comments from a task |
 
-## Licentie
+## License
 
 MIT
