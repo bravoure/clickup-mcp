@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  clickup-mcp-server:
+    build: .
+    container_name: clickup-mcp-server
+    environment:
+      - CLICKUP_API_TOKEN=${CLICKUP_API_TOKEN}
+      - DEFAULT_WORKSPACE_ID=${DEFAULT_WORKSPACE_ID}
+    restart: unless-stopped
