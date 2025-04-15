@@ -44,6 +44,77 @@ export class ClickUpClient {
   }
 
   /**
+   * Get a task with its comments and download attachments
+   */
+  async getTaskWithDetails(taskId, downloadAttachments = true, outputDir = './downloads') {
+    try {
+      // Get the task
+      console.log(`Getting task with details for ${taskId}`);
+      const task = await this.getTask(taskId);
+
+      // Get the comments
+      console.log(`Getting comments for task ${taskId}`);
+      const comments = await this.getTaskComments(taskId);
+
+      // Add comments to the task
+      task.processed_comments = comments;
+
+      // Format the comments for better readability
+      let formattedComments = '';
+      if (comments.length === 0) {
+        formattedComments = 'No comments found for this task.';
+      } else {
+        formattedComments = comments.map(comment => {
+          return `**${comment.user ? comment.user.username : 'Unknown user'}** (${new Date(comment.date).toLocaleString()}):\n${comment.text}\n`;
+        }).join('\n---\n\n');
+      }
+
+      task.formatted_comments = formattedComments;
+
+      // Download attachments if requested and if there are any
+      let downloadedAttachments = [];
+      if (downloadAttachments && task.attachments && task.attachments.length > 0) {
+        console.log(`Downloading ${task.attachments.length} attachments for task ${taskId}`);
+
+        // Create a task-specific directory
+        const taskDir = path.join(outputDir, `task_${taskId}`);
+        if (!fs.existsSync(taskDir)) {
+          fs.mkdirSync(taskDir, { recursive: true });
+        }
+
+        // Download each attachment
+        for (const attachment of task.attachments) {
+          try {
+            console.log(`Downloading attachment: ${attachment.title}`);
+            const result = await this.downloadAttachment(attachment.url, taskDir);
+            downloadedAttachments.push(result);
+          } catch (attachmentError) {
+            console.error(`Error downloading attachment ${attachment.title}: ${attachmentError.message}`);
+            downloadedAttachments.push({
+              success: false,
+              fileName: attachment.title,
+              error: attachmentError.message
+            });
+          }
+        }
+
+        // Add downloaded attachments to the task
+        task.downloaded_attachments = downloadedAttachments;
+      }
+
+      return {
+        task,
+        comments,
+        downloadedAttachments,
+        formattedComments
+      };
+    } catch (error) {
+      console.error(`Error getting task with details: ${error.message}`);
+      throw new Error(`Error getting task with details: ${error.message}`);
+    }
+  }
+
+  /**
    * Download an attachment from a task
    */
   async downloadAttachment(attachmentUrl, outputDir = './downloads') {
@@ -143,6 +214,144 @@ export class ClickUpClient {
   }
 
   /**
+   * Get a specific list by ID
+   */
+  async getList(listId) {
+    try {
+      // Log the request details
+      const url = `/list/${listId}`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+
+      // Make the API request
+      const response = await this.client.get(url);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data;
+    } catch (error) {
+      console.error(`API error in getList: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error fetching list: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all statuses for a list
+   */
+  async getListStatuses(listId) {
+    try {
+      // Get the list to get its statuses
+      const list = await this.getList(listId);
+
+      // Extract the statuses
+      const statuses = list.statuses || [];
+
+      return statuses;
+    } catch (error) {
+      console.error(`API error in getListStatuses: ${error.message}`);
+      throw new Error(`Error fetching list statuses: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all lists in a folder
+   */
+  async getLists(folderId) {
+    try {
+      // Log the request details
+      const url = `/folder/${folderId}/list`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+
+      // Make the API request
+      const response = await this.client.get(url);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data.lists;
+    } catch (error) {
+      console.error(`API error in getLists: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error fetching lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all lists that are not in any folder (folderless lists)
+   */
+  async getFolderlessLists(spaceId) {
+    try {
+      // Log the request details
+      const url = `/space/${spaceId}/list`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+
+      // Make the API request
+      const response = await this.client.get(url);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data.lists;
+    } catch (error) {
+      console.error(`API error in getFolderlessLists: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error fetching folderless lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all lists in a folder
+   */
+  async getLists(folderId) {
+    try {
+      // Log the request details
+      const url = `/folder/${folderId}/list`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+
+      // Make the API request
+      const response = await this.client.get(url);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data.lists;
+    } catch (error) {
+      console.error(`API error in getLists: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error fetching lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all lists that are not in any folder (folderless lists)
+   */
+  async getFolderlessLists(spaceId) {
+    try {
+      // Log the request details
+      const url = `/space/${spaceId}/list`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+
+      // Make the API request
+      const response = await this.client.get(url);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data.lists;
+    } catch (error) {
+      console.error(`API error in getFolderlessLists: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error fetching folderless lists: ${error.message}`);
+    }
+  }
+
+  /**
    * Get comments for a task
    */
   async getTaskComments(taskId) {
@@ -178,6 +387,56 @@ export class ClickUpClient {
         console.error(`Response data: ${JSON.stringify(error.response.data)}`);
       }
       throw new Error(`Error fetching task comments: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update an existing task
+   */
+  async updateTask(taskId, taskData) {
+    try {
+      // Log the request details
+      const url = `/task/${taskId}`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+      console.log(`Task update data: ${JSON.stringify(taskData)}`);
+
+      // Make the API request
+      const response = await this.client.put(url, taskData);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data;
+    } catch (error) {
+      console.error(`API error in updateTask: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error updating task: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a new task in a list
+   */
+  async createTask(listId, taskData) {
+    try {
+      // Log the request details
+      const url = `/list/${listId}/task`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+      console.log(`Task data: ${JSON.stringify(taskData)}`);
+
+      // Make the API request
+      const response = await this.client.post(url, taskData);
+      console.log(`API response status: ${response.status}`);
+
+      return response.data;
+    } catch (error) {
+      console.error(`API error in createTask: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error creating task: ${error.message}`);
     }
   }
 

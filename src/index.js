@@ -10,6 +10,11 @@ import { ClickUpClient } from "./clickup-client.js";
 dotenv.config();
 
 // Initialize ClickUp client
+if (!process.env.CLICKUP_API_TOKEN) {
+  console.error("Error: CLICKUP_API_TOKEN environment variable is required");
+  process.exit(1);
+}
+
 const clickupClient = new ClickUpClient(process.env.CLICKUP_API_TOKEN);
 
 // Create MCP server instance
@@ -32,7 +37,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            task_id: { type: "string", description: "The ID of the task" }
+            task_id: { type: "string", description: "The ID of the task" },
+            download_attachments: { type: "boolean", description: "Whether to download attachments (default: true)" },
+            output_dir: { type: "string", description: "The directory to save attachments to (default: './downloads')" }
           },
           required: ["task_id"]
         }
@@ -71,6 +78,75 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["task_id"]
         }
+      },
+      {
+        name: "get-lists",
+        description: "Get all lists in a folder",
+        inputSchema: {
+          type: "object",
+          properties: {
+            folder_id: { type: "string", description: "The ID of the folder" }
+          },
+          required: ["folder_id"]
+        }
+      },
+      {
+        name: "get-folderless-lists",
+        description: "Get all lists that are not in any folder",
+        inputSchema: {
+          type: "object",
+          properties: {
+            space_id: { type: "string", description: "The ID of the space" }
+          },
+          required: ["space_id"]
+        }
+      },
+      {
+        name: "create-task",
+        description: "Create a new task in a list",
+        inputSchema: {
+          type: "object",
+          properties: {
+            list_id: { type: "string", description: "The ID of the list" },
+            name: { type: "string", description: "The name of the task" },
+            description: { type: "string", description: "The description of the task" },
+            status: { type: "string", description: "The status of the task" },
+            priority: { type: "number", description: "The priority of the task (1-4)" },
+            due_date: { type: "number", description: "The due date timestamp in milliseconds" },
+            assignees: { type: "array", items: { type: "string" }, description: "Array of assignee user IDs" },
+            tags: { type: "array", items: { type: "string" }, description: "Array of tag names" }
+          },
+          required: ["list_id", "name"]
+        }
+      },
+      {
+        name: "update-task",
+        description: "Update an existing task",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task_id: { type: "string", description: "The ID of the task" },
+            name: { type: "string", description: "The name of the task" },
+            description: { type: "string", description: "The description of the task" },
+            status: { type: "string", description: "The status of the task" },
+            priority: { type: "number", description: "The priority of the task (1-4)" },
+            due_date: { type: "number", description: "The due date timestamp in milliseconds" },
+            assignees: { type: "array", items: { type: "string" }, description: "Array of assignee user IDs" },
+            tags: { type: "array", items: { type: "string" }, description: "Array of tag names" }
+          },
+          required: ["task_id"]
+        }
+      },
+      {
+        name: "get-list-statuses",
+        description: "Get all statuses for a list",
+        inputSchema: {
+          type: "object",
+          properties: {
+            list_id: { type: "string", description: "The ID of the list" }
+          },
+          required: ["list_id"]
+        }
       }
     ]
   };
@@ -84,14 +160,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (name === "get-task") {
       try {
         console.log(`Fetching task with ID: ${args.task_id}`);
-        const taskDetails = await clickupClient.getTask(args.task_id);
-        console.log(`Task details: ${JSON.stringify(taskDetails)}`);
+
+        // Determine whether to download attachments
+        const downloadAttachments = args.download_attachments !== false; // Default to true if not specified
+        const outputDir = args.output_dir || './downloads';
+
+        // Get task with comments and attachments
+        const result = await clickupClient.getTaskWithDetails(args.task_id, downloadAttachments, outputDir);
+        console.log(`Task details retrieved successfully`);
+
+        // Create a summary of the task
+        const task = result.task;
+        let summary = `# ${task.name}\n\n`;
+        summary += `**Status:** ${task.status ? task.status.status : 'Unknown'}\n`;
+        summary += `**Created:** ${new Date(parseInt(task.date_created)).toLocaleString()}\n`;
+        summary += `**Last Updated:** ${new Date(parseInt(task.date_updated)).toLocaleString()}\n\n`;
+
+        // Add description
+        summary += `## Description\n\n${task.description || 'No description'}\n\n`;
+
+        // Add comments
+        summary += `## Comments\n\n${result.formattedComments}\n\n`;
+
+        // Add attachments
+        if (downloadAttachments && result.downloadedAttachments && result.downloadedAttachments.length > 0) {
+          summary += `## Attachments\n\n`;
+          summary += result.downloadedAttachments.map(attachment => {
+            if (attachment.success) {
+              return `- [${attachment.fileName}](${attachment.filePath})`;
+            } else {
+              return `- ${attachment.fileName} (Error: ${attachment.error})`;
+            }
+          }).join('\n');
+          summary += `\n\nAttachments are saved in: ${outputDir}/task_${args.task_id}\n`;
+        } else if (task.attachments && task.attachments.length > 0) {
+          summary += `## Attachments\n\n`;
+          summary += task.attachments.map(attachment => {
+            return `- ${attachment.title} (${attachment.url})`;
+          }).join('\n');
+          summary += `\n\nAttachments were not downloaded.\n`;
+        }
+
         return {
-          toolResult: taskDetails,
+          toolResult: result,
           content: [
             {
               type: "text",
-              text: JSON.stringify(taskDetails, null, 2)
+              text: summary
             }
           ]
         };
@@ -197,6 +312,211 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Error getting task comments: ${error.message}. Please check if the task ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "get-lists") {
+      try {
+        console.log(`Getting lists for folder ${args.folder_id}`);
+        const lists = await clickupClient.getLists(args.folder_id);
+        console.log(`Found ${lists.length} lists`);
+
+        // Format the lists for better readability
+        let formattedLists = '';
+        if (lists.length === 0) {
+          formattedLists = 'No lists found for this folder.';
+        } else {
+          formattedLists = lists.map(list => {
+            return `- **${list.name}** (ID: ${list.id})`;
+          }).join('\n');
+        }
+
+        return {
+          toolResult: lists,
+          content: [
+            {
+              type: "text",
+              text: `Lists in folder ${args.folder_id}:\n\n${formattedLists}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error getting lists: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error getting lists: ${error.message}. Please check if the folder ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "get-folderless-lists") {
+      try {
+        console.log(`Getting folderless lists for space ${args.space_id}`);
+        const lists = await clickupClient.getFolderlessLists(args.space_id);
+        console.log(`Found ${lists.length} folderless lists`);
+
+        // Format the lists for better readability
+        let formattedLists = '';
+        if (lists.length === 0) {
+          formattedLists = 'No folderless lists found for this space.';
+        } else {
+          formattedLists = lists.map(list => {
+            return `- **${list.name}** (ID: ${list.id})`;
+          }).join('\n');
+        }
+
+        return {
+          toolResult: lists,
+          content: [
+            {
+              type: "text",
+              text: `Folderless lists in space ${args.space_id}:\n\n${formattedLists}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error getting folderless lists: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error getting folderless lists: ${error.message}. Please check if the space ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "create-task") {
+      try {
+        console.log(`Creating task in list ${args.list_id}`);
+
+        // Prepare the task data
+        const taskData = {
+          name: args.name,
+          description: args.description || '',
+        };
+
+        // Add optional fields if provided
+        if (args.status) taskData.status = args.status;
+        if (args.priority) taskData.priority = args.priority;
+        if (args.due_date) taskData.due_date = args.due_date;
+        if (args.assignees) taskData.assignees = args.assignees;
+        if (args.tags) taskData.tags = args.tags;
+
+        const task = await clickupClient.createTask(args.list_id, taskData);
+        console.log(`Created task with ID: ${task.id}`);
+
+        return {
+          toolResult: task,
+          content: [
+            {
+              type: "text",
+              text: `Successfully created task "${task.name}" in list ${args.list_id}.\n\nTask ID: ${task.id}\nTask URL: ${task.url}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error creating task: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error creating task: ${error.message}. Please check if the list ID and other parameters are correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "update-task") {
+      try {
+        console.log(`Updating task ${args.task_id}`);
+
+        // Prepare the task data
+        const taskData = {};
+
+        // Add fields if provided
+        if (args.name) taskData.name = args.name;
+        if (args.description) taskData.description = args.description;
+        if (args.status) taskData.status = args.status;
+        if (args.priority) taskData.priority = args.priority;
+        if (args.due_date) taskData.due_date = args.due_date;
+        if (args.assignees) taskData.assignees = args.assignees;
+        if (args.tags) taskData.tags = args.tags;
+
+        // Check if any fields were provided
+        if (Object.keys(taskData).length === 0) {
+          return {
+            toolResult: { error: "No update fields provided" },
+            content: [
+              {
+                type: "text",
+                text: "Error updating task: No update fields provided. Please provide at least one field to update."
+              }
+            ]
+          };
+        }
+
+        const task = await clickupClient.updateTask(args.task_id, taskData);
+        console.log(`Updated task with ID: ${task.id}`);
+
+        return {
+          toolResult: task,
+          content: [
+            {
+              type: "text",
+              text: `Successfully updated task "${task.name}".\n\nTask ID: ${task.id}\nTask URL: ${task.url}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error updating task: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error updating task: ${error.message}. Please check if the task ID and other parameters are correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "get-list-statuses") {
+      try {
+        console.log(`Getting statuses for list ${args.list_id}`);
+        const statuses = await clickupClient.getListStatuses(args.list_id);
+        console.log(`Found ${statuses.length} statuses`);
+
+        // Format the statuses for better readability
+        let formattedStatuses = '';
+        if (statuses.length === 0) {
+          formattedStatuses = 'No statuses found for this list.';
+        } else {
+          formattedStatuses = statuses.map(status => {
+            return `- **${status.status}** (ID: ${status.id}, Color: ${status.color})`;
+          }).join('\n');
+        }
+
+        return {
+          toolResult: statuses,
+          content: [
+            {
+              type: "text",
+              text: `Statuses for list ${args.list_id}:\n\n${formattedStatuses}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error getting list statuses: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error getting list statuses: ${error.message}. Please check if the list ID is correct.`
             }
           ]
         };

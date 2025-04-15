@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+npm-debug.log
+.env
+.env.example
+.gitignore
+README.md
+LICENSE
+*.md
+downloads/
+.dockerignore
