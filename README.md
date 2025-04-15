@@ -68,6 +68,8 @@ The easiest way to use the server is to integrate it directly with your AI assis
 
 With this approach, you don't need to manually run the Docker container or set environment variables - the AI assistant will handle this for you.
 
+Note: The Docker image is built for both Intel/AMD (amd64) and Apple Silicon (arm64) processors, so it works on all modern Macs and PCs.
+
 ### Option 2: Standalone Docker
 
 If you want to run the server as a standalone Docker container (not through an AI assistant), you can use the following commands:
