@@ -6,13 +6,9 @@ Een Model Context Protocol (MCP) server voor ClickUp integratie, waarmee AI-assi
 
 Deze MCP server biedt de volgende tools voor interactie met ClickUp:
 
-- **Workspaces**: Ophalen van alle geautoriseerde workspaces
-- **Spaces**: Ophalen van spaces binnen een workspace
-- **Folders**: Ophalen van folders binnen een space
-- **Lists**: Ophalen van lists binnen een folder of space
-- **Tasks**: Ophalen, aanmaken en bijwerken van taken
-- **Comments**: Ophalen en aanmaken van opmerkingen bij taken
-- **Time Tracking**: Ophalen en aanmaken van tijdregistraties
+- **Tasks**: Ophalen van specifieke taken via task ID
+- **Attachments**: Uploaden en downloaden van bijlagen bij taken
+- **Comments**: Ophalen van opmerkingen bij taken
 
 ## Vereisten
 
@@ -95,20 +91,10 @@ Om deze MCP server te gebruiken met Claude Desktop:
 
 | Tool | Beschrijving |
 |------|-------------|
-| get-workspaces | Haal alle geautoriseerde workspaces op |
-| get-spaces | Haal alle spaces in een workspace op |
-| get-folders | Haal alle folders in een space op |
-| get-lists | Haal alle lists in een folder op |
-| get-folderless-lists | Haal alle lists op die niet in een folder zitten |
-| get-tasks | Haal taken uit een list op |
 | get-task | Haal een specifieke taak op via ID |
-| create-task | Maak een nieuwe taak aan in een list |
-| update-task | Werk een bestaande taak bij |
-| get-task-comments | Haal opmerkingen voor een taak op |
-| create-task-comment | Maak een opmerking bij een taak |
-| get-time-entries | Haal tijdregistraties voor een taak op |
-| create-time-entry | Maak een tijdregistratie voor een taak |
-| search-tasks | Zoek naar taken in een workspace |
+| create-task-attachment | Upload een bijlage naar een taak |
+| download-task-attachments | Download alle bijlagen van een taak |
+| get-task-comments | Haal alle opmerkingen van een taak op |
 
 ## Licentie
 

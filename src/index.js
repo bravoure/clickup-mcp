@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
@@ -25,53 +27,49 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "get-workspaces",
-        description: "Get all authorized workspaces",
-        inputSchema: {
-          type: "object",
-          properties: {},
-          required: []
-        }
-      },
-      {
-        name: "get-spaces",
-        description: "Get all spaces in a workspace",
+        name: "get-task",
+        description: "Get a specific task by ID",
         inputSchema: {
           type: "object",
           properties: {
-            workspace_id: { type: "string", description: "The ID of the workspace" }
+            task_id: { type: "string", description: "The ID of the task" }
           },
-          required: ["workspace_id"]
+          required: ["task_id"]
         }
       },
       {
-        name: "get-tasks",
-        description: "Get tasks from a list",
+        name: "create-task-attachment",
+        description: "Upload an attachment to a task",
         inputSchema: {
           type: "object",
           properties: {
-            list_id: { type: "string", description: "The ID of the list" },
-            page: { type: "number", description: "Page number for pagination" }
+            task_id: { type: "string", description: "The ID of the task" },
+            file_path: { type: "string", description: "The path to the file to upload" }
           },
-          required: ["list_id"]
+          required: ["task_id", "file_path"]
         }
       },
       {
-        name: "create-task",
-        description: "Create a new task in a list",
+        name: "download-task-attachments",
+        description: "Download all attachments from a task",
         inputSchema: {
           type: "object",
           properties: {
-            list_id: { type: "string", description: "The ID of the list" },
-            name: { type: "string", description: "The name of the task" },
-            description: { type: "string", description: "The description of the task" },
-            status: { type: "string", description: "The status of the task" },
-            priority: { type: "number", description: "The priority of the task (1-4)" },
-            due_date: { type: "number", description: "The due date timestamp in milliseconds" },
-            assignees: { type: "array", items: { type: "string" }, description: "Array of assignee user IDs" },
-            tags: { type: "array", items: { type: "string" }, description: "Array of tag names" }
+            task_id: { type: "string", description: "The ID of the task" },
+            output_dir: { type: "string", description: "The directory to save the attachments to (optional)" }
           },
-          required: ["list_id", "name"]
+          required: ["task_id"]
+        }
+      },
+      {
+        name: "get-task-comments",
+        description: "Get all comments from a task",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task_id: { type: "string", description: "The ID of the task" }
+          },
+          required: ["task_id"]
         }
       }
     ]
@@ -83,39 +81,144 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
 
-    switch (name) {
-      case "get-workspaces":
-        const workspaces = await clickupClient.getWorkspaces();
-        return { toolResult: workspaces };
+    if (name === "get-task") {
+      try {
+        console.log(`Fetching task with ID: ${args.task_id}`);
+        const taskDetails = await clickupClient.getTask(args.task_id);
+        console.log(`Task details: ${JSON.stringify(taskDetails)}`);
+        return {
+          toolResult: taskDetails,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(taskDetails, null, 2)
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error fetching task: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error fetching task: ${error.message}. Please check if the task ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "create-task-attachment") {
+      try {
+        console.log(`Uploading attachment to task ${args.task_id} from file ${args.file_path}`);
+        const result = await clickupClient.createTaskAttachment(args.task_id, args.file_path);
+        console.log(`Upload result: ${JSON.stringify(result)}`);
+        return {
+          toolResult: result,
+          content: [
+            {
+              type: "text",
+              text: `Successfully uploaded attachment to task ${args.task_id}. ${JSON.stringify(result, null, 2)}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error uploading attachment: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error uploading attachment: ${error.message}. Please check if the task ID and file path are correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "download-task-attachments") {
+      try {
+        console.log(`Downloading attachments from task ${args.task_id}`);
+        const outputDir = args.output_dir || './downloads';
+        const result = await clickupClient.downloadAllTaskAttachments(args.task_id, outputDir);
+        console.log(`Download result: ${JSON.stringify(result)}`);
 
-      case "get-spaces":
-        const spaces = await clickupClient.getSpaces(args.workspace_id);
-        return { toolResult: spaces };
+        // Create a more detailed response with file paths
+        const fileList = result.downloadedFiles.map(file => `- ${file.fileName} (${file.filePath})`);
 
-      case "get-tasks":
-        const tasks = await clickupClient.getTasks(args.list_id, args.page || 0);
-        return { toolResult: tasks };
+        return {
+          toolResult: result,
+          content: [
+            {
+              type: "text",
+              text: `Successfully downloaded ${result.downloadedFiles.length} attachments from task ${args.task_id}:\n\n${fileList.join('\n')}\n\nFiles are saved in: ${outputDir}/task_${args.task_id}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error downloading attachments: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error downloading attachments: ${error.message}. Please check if the task ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "get-task-comments") {
+      try {
+        console.log(`Getting comments for task ${args.task_id}`);
+        const comments = await clickupClient.getTaskComments(args.task_id);
+        console.log(`Found ${comments.length} comments`);
 
-      case "create-task":
-        const task = await clickupClient.createTask(args.list_id, {
-          name: args.name,
-          description: args.description,
-          status: args.status,
-          priority: args.priority,
-          due_date: args.due_date,
-          assignees: args.assignees,
-          tags: args.tags
-        });
-        return { toolResult: task };
+        // Format the comments for better readability
+        let formattedComments = '';
+        if (comments.length === 0) {
+          formattedComments = 'No comments found for this task.';
+        } else {
+          formattedComments = comments.map(comment => {
+            return `**${comment.user ? comment.user.username : 'Unknown user'}** (${new Date(comment.date).toLocaleString()}):\n${comment.text}\n`;
+          }).join('\n---\n\n');
+        }
 
-      default:
-        throw new McpError(ErrorCode.ToolNotFound, `Tool '${name}' not found`);
+        return {
+          toolResult: comments,
+          content: [
+            {
+              type: "text",
+              text: `Comments for task ${args.task_id}:\n\n${formattedComments}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error getting task comments: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error getting task comments: ${error.message}. Please check if the task ID is correct.`
+            }
+          ]
+        };
+      }
+    } else {
+      throw new McpError(ErrorCode.ToolNotFound, `Tool '${name}' not found`);
     }
   } catch (error) {
+    console.error(`Error in MCP server: ${error.message}`);
     if (error instanceof McpError) {
+      error.content = [{
+        type: "text",
+        text: error.message
+      }];
       throw error;
     }
-    throw new McpError(ErrorCode.ToolExecutionError, `Error executing tool: ${error.message}`);
+    const mcpError = new McpError(ErrorCode.ToolExecutionError, `Error executing tool: ${error.message}`);
+    mcpError.content = [{
+      type: "text",
+      text: `Error executing tool: ${error.message}`
+    }];
+    throw mcpError;
   }
 });
 
@@ -126,97 +229,4 @@ server.connect(transport).catch((error) => {
   process.exit(1);
 });
 
-      try {
-        const timeEntries = await clickupClient.getTimeEntries(task_id);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(timeEntries, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error fetching time entries: ${error.message}`,
-            },
-          ],
-        };
-      }
-    }
-  );
 
-  // Create Time Entry
-  server.tool(
-    "create-time-entry",
-    "Create a time entry for a task",
-    {
-      task_id: z.string().describe("The ID of the task"),
-      start: z.number().describe("Start time in milliseconds"),
-      duration: z.number().describe("Duration in milliseconds"),
-      description: z.string().optional().describe("Description of the time entry"),
-    },
-    async ({ task_id, start, duration, description }) => {
-      try {
-        const timeEntry = await clickupClient.createTimeEntry(task_id, {
-          start,
-          duration,
-          description,
-        });
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(timeEntry, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error creating time entry: ${error.message}`,
-            },
-          ],
-        };
-      }
-    }
-  );
-
-  // Search Tasks
-  server.tool(
-    "search-tasks",
-    "Search for tasks across a workspace",
-    {
-      workspace_id: z.string().describe("The ID of the workspace"),
-      query: z.string().describe("Search query"),
-      page: z.number().optional().describe("Page number for pagination"),
-    },
-    async ({ workspace_id, query, page }) => {
-      try {
-        const tasks = await clickupClient.searchTasks(workspace_id, query, page || 0);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(tasks, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error searching tasks: ${error.message}`,
-            },
-          ],
-        };
-      }
-    }
-  );
-}
