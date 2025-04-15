@@ -39,7 +39,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             task_id: { type: "string", description: "The ID of the task" },
             download_attachments: { type: "boolean", description: "Whether to download attachments (default: true)" },
-            output_dir: { type: "string", description: "The directory to save attachments to (default: './downloads')" }
+            output_dir: { type: "string", description: "The directory to save attachments to (default: '/app/downloads')" }
           },
           required: ["task_id"]
         }
@@ -63,7 +63,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             task_id: { type: "string", description: "The ID of the task" },
-            output_dir: { type: "string", description: "The directory to save the attachments to (optional)" }
+            output_dir: { type: "string", description: "The directory to save the attachments to (default: '/app/downloads')" }
           },
           required: ["task_id"]
         }
@@ -175,7 +175,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         // Determine whether to download attachments
         const downloadAttachments = args.download_attachments !== false; // Default to true if not specified
-        const outputDir = args.output_dir || './downloads';
+        const outputDir = args.output_dir || '/app/downloads';
 
         // Get task with comments and attachments
         const result = await clickupClient.getTaskWithDetails(args.task_id, downloadAttachments, outputDir);
@@ -263,7 +263,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } else if (name === "download-task-attachments") {
       try {
         console.log(`Downloading attachments from task ${args.task_id}`);
-        const outputDir = args.output_dir || './downloads';
+        const outputDir = args.output_dir || '/app/downloads';
         const result = await clickupClient.downloadAllTaskAttachments(args.task_id, outputDir);
         console.log(`Download result: ${JSON.stringify(result)}`);
 

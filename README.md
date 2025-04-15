@@ -27,6 +27,7 @@ If you just want to use the ClickUp MCP server with your AI assistant, follow th
         "run",
         "--rm",
         "-i",
+        "-v", "/path/to/local/downloads:/app/downloads",
         "-e",
         "CLICKUP_API_TOKEN=your_api_token_here",
         "ghcr.io/bravoure/clickup-mcp:latest"
@@ -36,10 +37,11 @@ If you just want to use the ClickUp MCP server with your AI assistant, follow th
 }
 ```
 [claude_desktop_config.json](../../../../Library/Application%20Support/Claude/claude_desktop_config.json)
-4. Replace `your_api_token_here` with your ClickUp API token
-5. Restart Claude Desktop
+4. Replace `/path/to/local/downloads` with the path where you want to save downloaded attachments (e.g., `/Users/yourusername/Downloads/clickup-downloads`)
+5. Replace `your_api_token_here` with your ClickUp API token
+6. Restart Claude Desktop
 
-Note: The `-i` flag is important as it keeps stdin open, which is required for the MCP protocol to work correctly.
+Note: The `-i` flag is important as it keeps stdin open, which is required for the MCP protocol to work correctly. The `-v` flag creates a volume mount that allows downloaded files to be accessible on your local system.
 
 ### Integration with Augment
 
@@ -59,6 +61,7 @@ Note: The `-i` flag is important as it keeps stdin open, which is required for t
                 "run",
                 "--rm",
                 "-i",
+                "-v", "/path/to/local/downloads:/app/downloads",
                 "-e", "CLICKUP_API_TOKEN=your_api_token_here",
                 "ghcr.io/bravoure/clickup-mcp:latest"
             ]
@@ -67,8 +70,9 @@ Note: The `-i` flag is important as it keeps stdin open, which is required for t
 }
 ```
 
-6. Replace `your_api_token_here` with your ClickUp API token
-7. Save the changes and restart VS Code
+6. Replace `/path/to/local/downloads` with the path where you want to save downloaded attachments (e.g., `/Users/yourusername/Downloads/clickup-downloads`)
+7. Replace `your_api_token_here` with your ClickUp API token
+8. Save the changes and restart VS Code
 
 Note: The Docker image is built for both Intel/AMD (amd64) and Apple Silicon (arm64) processors, so it works on all modern Macs and PCs.
 

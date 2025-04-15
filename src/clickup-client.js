@@ -46,7 +46,7 @@ export class ClickUpClient {
   /**
    * Get a task with its comments and download attachments
    */
-  async getTaskWithDetails(taskId, downloadAttachments = true, outputDir = './downloads') {
+  async getTaskWithDetails(taskId, downloadAttachments = true, outputDir = '/app/downloads') {
     try {
       // Get the task
       console.log(`Getting task with details for ${taskId}`);
@@ -169,7 +169,7 @@ export class ClickUpClient {
   /**
    * Download all attachments from a task
    */
-  async downloadAllTaskAttachments(taskId, outputDir = './downloads') {
+  async downloadAllTaskAttachments(taskId, outputDir = '/app/downloads') {
     try {
       // First get the task to get the attachments
       const task = await this.getTask(taskId);
