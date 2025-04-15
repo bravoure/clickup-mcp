@@ -7,3 +7,4 @@ services:
     environment:
       - CLICKUP_API_TOKEN=${CLICKUP_API_TOKEN}
     restart: unless-stopped
+    stdin_open: true

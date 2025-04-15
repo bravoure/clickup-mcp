@@ -2,20 +2,181 @@
 
 A Model Context Protocol (MCP) server for ClickUp integration, allowing AI assistants like Claude to communicate with ClickUp.
 
-## Features
+## Quick Start for Users
 
-This MCP server provides the following tools for interacting with ClickUp:
+If you just want to use the ClickUp MCP server with your AI assistant, follow these steps:
 
-- **Tasks**: Retrieve, create, and update tasks
-- **Lists**: Retrieve lists and their statuses
-- **Attachments**: Upload and download task attachments
-- **Comments**: Retrieve task comments
+### Prerequisites
 
-## Requirements
+- A ClickUp account with an API token (see [Getting a ClickUp API Token](#getting-a-clickup-api-token))
+- Docker installed on your machine
+- Claude Desktop or VS Code with Augment extension
+
+### Integration with Claude Desktop
+
+1. Make sure you have Claude Desktop installed
+2. Open the configuration file at `~/Library/Application Support/Claude/claude_desktop_config.json`
+3. Add the following configuration:
+
+```json
+{
+  "mcpServers": {
+    "clickup": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CLICKUP_API_TOKEN=your_api_token_here",
+        "ghcr.io/bravoure/clickup-mcp:latest"
+      ]
+    }
+  }
+}
+```
+[claude_desktop_config.json](../../../../Library/Application%20Support/Claude/claude_desktop_config.json)
+4. Replace `your_api_token_here` with your ClickUp API token
+5. Restart Claude Desktop
+
+Note: The `-i` flag is important as it keeps stdin open, which is required for the MCP protocol to work correctly.
+
+### Integration with Augment
+
+1. Open VS Code
+2. Press Cmd/Ctrl+Shift+P
+3. Type "Augment: Edit Settings"
+4. Click on "Edit in settings.json"
+5. Add the following configuration:
+
+```json
+"augment.advanced": {
+    "mcpServers": [
+        {
+            "name": "clickup",
+            "command": "docker",
+            "args": [
+                "run",
+                "--rm",
+                "-i",
+                "-e", "CLICKUP_API_TOKEN=your_api_token_here",
+                "ghcr.io/bravoure/clickup-mcp:latest"
+            ]
+        }
+    ]
+}
+```
+
+6. Replace `your_api_token_here` with your ClickUp API token
+7. Save the changes and restart VS Code
+
+Note: The Docker image is built for both Intel/AMD (amd64) and Apple Silicon (arm64) processors, so it works on all modern Macs and PCs.
+
+### Troubleshooting
+
+If you encounter issues with the MCP server disconnecting, try one of these alternative configurations:
+
+#### Option 1: Specify the Node.js command explicitly
+
+```json
+{
+  "mcpServers": {
+    "clickup": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "CLICKUP_API_TOKEN=your_api_token_here",
+        "ghcr.io/bravoure/clickup-mcp:latest",
+        "node",
+        "src/index.js"
+      ]
+    }
+  }
+}
+```
+
+#### Option 2: Run without Docker (if Node.js is installed locally)
+
+```json
+{
+  "mcpServers": {
+    "clickup": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/clickup-mcp/src/index.js"
+      ],
+      "env": {
+        "CLICKUP_API_TOKEN": "your_api_token_here"
+      }
+    }
+  }
+}
+```
+
+Replace `/absolute/path/to/clickup-mcp/src/index.js` with the full path to your index.js file.
+
+## For Developers
+
+If you want to contribute to the project or run it locally, follow these steps:
+
+### Prerequisites
 
 - Node.js 18 or higher
 - A ClickUp account with an API token
-- Docker and Docker Compose (for containerization)
+- Git
+
+### Local Development Setup
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/bravoure/clickup-mcp.git
+   cd clickup-mcp
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env` file with your ClickUp API token:
+   ```bash
+   echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
+   ```
+
+4. Start the server:
+   ```bash
+   npm start
+   ```
+
+### Running with Docker
+
+If you want to test the Docker container locally:
+
+```bash
+# Build the Docker image
+docker build -t clickup-mcp .
+
+# Run the container
+docker run -i \
+  -e CLICKUP_API_TOKEN=your_api_token_here \
+  --name clickup-mcp \
+  clickup-mcp
+```
+
+### Using Docker Compose
+
+You can also use Docker Compose:
+
+```bash
+# Create a .env file with your ClickUp API token
+echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
+
+# Start the container
+docker-compose up -d
+```
 
 ## Getting a ClickUp API Token
 
@@ -40,146 +201,6 @@ To find the necessary IDs for using the tools, you can use the following methods
    - `get-lists`: Retrieves all lists in a folder
    - `get-folderless-lists`: Retrieves all lists that are not in any folder
 
-## Installation
-
-1. Clone this repository:
-   ```
-   git clone <repository-url>
-   cd clickup-mcp-server
-   ```
-
-2. Install dependencies:
-   ```
-   npm install
-   ```
-
-3. Create a `.env` file with your ClickUp API token (only needed if you're running the server locally):
-   ```
-   echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
-   ```
-
-   Note: If you're using Claude Desktop or Augment, you don't need this file as you'll provide the API token directly in the MCP configuration.
-
-## Usage
-
-### Option 1: Integration with AI Assistants (recommended)
-
-The easiest way to use the server is to integrate it directly with your AI assistant (Claude Desktop or Augment). See the [Integration with AI Assistants](#integration-with-ai-assistants) section below for detailed instructions.
-
-With this approach, you don't need to manually run the Docker container or set environment variables - the AI assistant will handle this for you.
-
-Note: The Docker image is built for both Intel/AMD (amd64) and Apple Silicon (arm64) processors, so it works on all modern Macs and PCs.
-
-### Option 2: Standalone Docker
-
-If you want to run the server as a standalone Docker container (not through an AI assistant), you can use the following commands:
-
-```bash
-# Pull the image
-docker pull ghcr.io/bravoure/clickup-mcp:latest
-
-# Start the container with your ClickUp API token
-docker run -d \
-  -e CLICKUP_API_TOKEN=your_api_token_here \
-  --name clickup-mcp \
-  ghcr.io/bravoure/clickup-mcp:latest
-```
-
-Note: This approach is only needed if you're using the server directly, not through Claude Desktop or Augment.
-
-### Option 3: Run locally
-
-If you want to run the server locally, follow these steps:
-
-```bash
-# Clone the repository
-git clone https://github.com/bravoure/clickup-mcp.git
-cd clickup-mcp
-
-# Install dependencies
-npm install
-
-# Create a .env file with your ClickUp API token (only needed for local development)
-echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
-
-# Start the server
-npm start
-```
-
-### Option 4: Docker Compose
-
-You can also use Docker Compose to start the container:
-
-```bash
-# Clone the repository
-git clone https://github.com/bravoure/clickup-mcp.git
-cd clickup-mcp
-
-# Create a .env file with your ClickUp API token (needed for Docker Compose)
-echo "CLICKUP_API_TOKEN=your_api_token_here" > .env
-
-# Start the container
-docker-compose up -d
-```
-
-## Integration with AI Assistants
-
-### Integration with Claude Desktop
-
-To use this MCP server with Claude Desktop:
-
-1. Make sure you have Claude Desktop installed
-2. Open the configuration file at `~/Library/Application Support/Claude/claude_desktop_config.json`
-3. Add the following configuration:
-
-```json
-{
-  "mcpServers": {
-    "clickup": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-e",
-        "CLICKUP_API_TOKEN=your_api_token_here",
-        "ghcr.io/bravoure/clickup-mcp:latest"
-      ]
-    }
-  }
-}
-```
-
-4. Restart Claude Desktop
-
-### Integration with Augment
-
-To use this MCP server with Augment in VS Code:
-
-1. Open VS Code
-2. Press Cmd/Ctrl+Shift+P
-3. Type "Augment: Edit Settings"
-4. Click on "Edit in settings.json"
-5. Add the following configuration:
-
-```json
-"augment.advanced": {
-    "mcpServers": [
-        {
-            "name": "clickup",
-            "command": "docker",
-            "args": [
-                "run",
-                "--rm",
-                "-e", "CLICKUP_API_TOKEN=your_api_token_here",
-                "ghcr.io/bravoure/clickup-mcp:latest"
-            ]
-        }
-    ]
-}
-```
-
-6. Save the changes and restart VS Code
-
 ## Available Tools
 
 | Tool | Description |
@@ -193,6 +214,15 @@ To use this MCP server with Augment in VS Code:
 | create-task-attachment | Upload an attachment to a task |
 | download-task-attachments | Download all attachments from a task |
 | get-task-comments | Retrieve all comments from a task |
+
+## Features
+
+This MCP server provides the following tools for interacting with ClickUp:
+
+- **Tasks**: Retrieve, create, and update tasks
+- **Lists**: Retrieve lists and their statuses
+- **Attachments**: Upload and download task attachments
+- **Comments**: Retrieve task comments
 
 ## License
 
