@@ -490,6 +490,28 @@ export class ClickUpClient {
   }
 
   /**
+   * Create a subtask under a parent task
+   * The parent task and subtask must be in the same list
+   */
+  async createSubtask(listId, parentTaskId, taskData) {
+    try {
+      // Add the parent task ID to the task data
+      const subtaskData = {
+        ...taskData,
+        parent: parentTaskId
+      };
+
+      console.log(`Creating subtask under parent task ${parentTaskId} in list ${listId}`);
+
+      // Use the existing createTask method to create the subtask
+      return await this.createTask(listId, subtaskData);
+    } catch (error) {
+      console.error(`API error in createSubtask: ${error.message}`);
+      throw new Error(`Error creating subtask: ${error.message}`);
+    }
+  }
+
+  /**
    * Upload an attachment to a task
    */
   async createTaskAttachment(taskId, filePath) {

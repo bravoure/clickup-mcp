@@ -159,6 +159,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["list_id"]
         }
+      },
+      {
+        name: "create-subtask",
+        description: "Create a subtask under a parent task",
+        inputSchema: {
+          type: "object",
+          properties: {
+            list_id: { type: "string", description: "The ID of the list containing the parent task" },
+            parent_task_id: { type: "string", description: "The ID of the parent task" },
+            name: { type: "string", description: "The name of the subtask" },
+            description: { type: "string", description: "The description of the subtask" },
+            status: { type: "string", description: "The status of the subtask" },
+            priority: { type: "number", description: "The priority of the subtask (1-4)" },
+            due_date: { type: "number", description: "The due date timestamp in milliseconds" },
+            assignees: { type: "array", items: { type: "string" }, description: "Array of assignee user IDs" },
+            tags: { type: "array", items: { type: "string" }, description: "Array of tag names" }
+          },
+          required: ["list_id", "parent_task_id", "name"]
+        }
       }
     ]
   };
@@ -570,6 +589,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: `Error getting list statuses: ${error.message}. Please check if the list ID is correct.`
+            }
+          ]
+        };
+      }
+    } else if (name === "create-subtask") {
+      try {
+        console.log(`Creating subtask under parent task ${args.parent_task_id} in list ${args.list_id}`);
+
+        // Prepare the subtask data
+        const subtaskData = {
+          name: args.name,
+          description: args.description || '',
+        };
+
+        // Add optional fields if provided
+        if (args.status) subtaskData.status = args.status;
+        if (args.priority) subtaskData.priority = args.priority;
+        if (args.due_date) subtaskData.due_date = args.due_date;
+        if (args.assignees) subtaskData.assignees = args.assignees;
+        if (args.tags) subtaskData.tags = args.tags;
+
+        const subtask = await clickupClient.createSubtask(args.list_id, args.parent_task_id, subtaskData);
+        console.log(`Created subtask with ID: ${subtask.id}`);
+
+        return {
+          toolResult: subtask,
+          content: [
+            {
+              type: "text",
+              text: `Successfully created subtask "${subtask.name}" under parent task ${args.parent_task_id}.\n\nSubtask ID: ${subtask.id}\nSubtask URL: ${subtask.url}`
+            }
+          ]
+        };
+      } catch (error) {
+        console.error(`Error creating subtask: ${error.message}`);
+        return {
+          toolResult: { error: error.message },
+          content: [
+            {
+              type: "text",
+              text: `Error creating subtask: ${error.message}. Please check if the list ID and parent task ID are correct and in the same list.`
             }
           ]
         };
