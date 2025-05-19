@@ -188,6 +188,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         summary += `**Created:** ${new Date(parseInt(task.date_created)).toLocaleString()}\n`;
         summary += `**Last Updated:** ${new Date(parseInt(task.date_updated)).toLocaleString()}\n\n`;
 
+        // Add hierarchy information
+        summary += `## Hierarchy Information\n\n`;
+        summary += `**List ID:** ${task.hierarchy.list_id || 'Not available'}\n`;
+        summary += `**Workspace ID:** ${task.hierarchy.workspace_id || 'Not available'}\n`;
+        summary += `**Folder ID:** ${task.hierarchy.folder_id || 'Not available'}\n\n`;
+
         // Add description
         summary += `## Description\n\n${task.description || 'No description'}\n\n`;
 
@@ -213,8 +219,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           summary += `\n\nAttachments were not downloaded.\n`;
         }
 
+        // Add hierarchy information to the top level of the toolResult for easier access
         return {
-          toolResult: result,
+          toolResult: {
+            ...result,
+            list_id: task.hierarchy.list_id,
+            workspace_id: task.hierarchy.workspace_id,
+            folder_id: task.hierarchy.folder_id
+          },
           content: [
             {
               type: "text",

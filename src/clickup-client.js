@@ -45,6 +45,7 @@ export class ClickUpClient {
 
   /**
    * Get a task with its comments and download attachments
+   * Also extracts and returns list, workspace, and folder IDs
    */
   async getTaskWithDetails(taskId, downloadAttachments = true, outputDir = '/app/downloads') {
     try {
@@ -70,6 +71,23 @@ export class ClickUpClient {
       }
 
       task.formatted_comments = formattedComments;
+
+      // Extract list, workspace, and folder IDs
+      const listId = task.list ? task.list.id : null;
+      const workspaceId = task.team_id || null;
+
+      // Extract folder ID if available
+      let folderId = null;
+      if (task.folder && task.folder.id) {
+        folderId = task.folder.id;
+      }
+
+      // Add these IDs to the task object for easy access
+      task.hierarchy = {
+        list_id: listId,
+        workspace_id: workspaceId,
+        folder_id: folderId
+      };
 
       // Download attachments if requested and if there are any
       let downloadedAttachments = [];
@@ -106,7 +124,8 @@ export class ClickUpClient {
         task,
         comments,
         downloadedAttachments,
-        formattedComments
+        formattedComments,
+        hierarchy: task.hierarchy
       };
     } catch (error) {
       console.error(`Error getting task with details: ${error.message}`);
