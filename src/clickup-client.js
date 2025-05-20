@@ -30,9 +30,9 @@ export class ClickUpClient {
       const url = `/task/${taskId}`;
       const params = {};
 
-      // Add subtasks parameter if requested
+      // Add include_subtasks parameter if requested
       if (includeSubtasks) {
-        params.subtasks = true;
+        params.include_subtasks = true;
       }
 
       console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
@@ -122,6 +122,9 @@ export class ClickUpClient {
         });
       }
 
+      // Ensure we always include the subtask_ids in the hierarchy information
+      task.hierarchy.subtask_ids = task.subtask_ids;
+
       // Download attachments if requested and if there are any
       let downloadedAttachments = [];
       if (downloadAttachments && task.attachments && task.attachments.length > 0) {
@@ -158,7 +161,8 @@ export class ClickUpClient {
         comments,
         downloadedAttachments,
         formattedComments,
-        hierarchy: task.hierarchy
+        hierarchy: task.hierarchy,
+        subtasks: task.subtasks || []
       };
     } catch (error) {
       console.error(`Error getting task with details: ${error.message}`);
