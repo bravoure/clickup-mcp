@@ -21,16 +21,26 @@ export class ClickUpClient {
 
   /**
    * Get a specific task by ID
+   * @param {string} taskId - The ID of the task to fetch
+   * @param {boolean} includeSubtasks - Whether to include subtasks in the response (default: true)
    */
-  async getTask(taskId) {
+  async getTask(taskId, includeSubtasks = true) {
     try {
-      // Log the full URL for debugging
+      // Prepare URL and query parameters
       const url = `/task/${taskId}`;
+      const params = {};
+
+      // Add subtasks parameter if requested
+      if (includeSubtasks) {
+        params.subtasks = true;
+      }
+
       console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
       console.log(`Authorization header: ${this.client.defaults.headers.Authorization.substring(0, 10)}...`);
+      console.log(`Include subtasks: ${includeSubtasks}`);
 
-      // Make the API request
-      const response = await this.client.get(url);
+      // Make the API request with query parameters
+      const response = await this.client.get(url, { params });
       console.log(`API response status: ${response.status}`);
       return response.data;
     } catch (error) {
@@ -46,12 +56,16 @@ export class ClickUpClient {
   /**
    * Get a task with its comments and download attachments
    * Also extracts and returns list, workspace, and folder IDs
+   * @param {string} taskId - The ID of the task to fetch
+   * @param {boolean} downloadAttachments - Whether to download attachments (default: true)
+   * @param {string} outputDir - The directory to save attachments to (default: '/app/downloads')
+   * @param {boolean} includeSubtasks - Whether to include subtasks in the response (default: true)
    */
-  async getTaskWithDetails(taskId, downloadAttachments = true, outputDir = '/app/downloads') {
+  async getTaskWithDetails(taskId, downloadAttachments = true, outputDir = '/app/downloads', includeSubtasks = true) {
     try {
       // Get the task
       console.log(`Getting task with details for ${taskId}`);
-      const task = await this.getTask(taskId);
+      const task = await this.getTask(taskId, includeSubtasks);
 
       // Get the comments
       console.log(`Getting comments for task ${taskId}`);
@@ -82,12 +96,31 @@ export class ClickUpClient {
         folderId = task.folder.id;
       }
 
+      // Extract parent task ID if this is a subtask (always include, even if null)
+      const parentTaskId = task.parent || null;
+
       // Add these IDs to the task object for easy access
       task.hierarchy = {
         list_id: listId,
         workspace_id: workspaceId,
-        folder_id: folderId
+        folder_id: folderId,
+        parent_task_id: parentTaskId
       };
+
+      // Process subtasks (always include subtask_ids array, even if empty)
+      task.subtask_ids = [];
+
+      // If subtasks are available, extract their IDs
+      if (task.subtasks && task.subtasks.length > 0) {
+        task.subtask_ids = task.subtasks.map(subtask => subtask.id);
+
+        // Also ensure each subtask has its parent_task_id set
+        task.subtasks.forEach(subtask => {
+          if (!subtask.parent_task_id) {
+            subtask.parent_task_id = task.id;
+          }
+        });
+      }
 
       // Download attachments if requested and if there are any
       let downloadedAttachments = [];

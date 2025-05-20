@@ -39,7 +39,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             task_id: { type: "string", description: "The ID of the task" },
             download_attachments: { type: "boolean", description: "Whether to download attachments (default: true)" },
-            output_dir: { type: "string", description: "The directory to save attachments to (default: '/app/downloads')" }
+            output_dir: { type: "string", description: "The directory to save attachments to (default: '/app/downloads')" },
+            include_subtasks: { type: "boolean", description: "Whether to include subtasks in the response (default: true)" }
           },
           required: ["task_id"]
         }
@@ -192,12 +193,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         console.log(`Fetching task with ID: ${args.task_id}`);
 
-        // Determine whether to download attachments
+        // Determine whether to download attachments and include subtasks
         const downloadAttachments = args.download_attachments !== false; // Default to true if not specified
+        const includeSubtasks = args.include_subtasks !== false; // Default to true if not specified
         const outputDir = args.output_dir || '/app/downloads';
 
         // Get task with comments and attachments
-        const result = await clickupClient.getTaskWithDetails(args.task_id, downloadAttachments, outputDir);
+        const result = await clickupClient.getTaskWithDetails(args.task_id, downloadAttachments, outputDir, includeSubtasks);
         console.log(`Task details retrieved successfully`);
 
         // Create a summary of the task
@@ -211,10 +213,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         summary += `## Hierarchy Information\n\n`;
         summary += `**List ID:** ${task.hierarchy.list_id || 'Not available'}\n`;
         summary += `**Workspace ID:** ${task.hierarchy.workspace_id || 'Not available'}\n`;
-        summary += `**Folder ID:** ${task.hierarchy.folder_id || 'Not available'}\n\n`;
+        summary += `**Folder ID:** ${task.hierarchy.folder_id || 'Not available'}\n`;
+
+        // Always add parent-child relationship information, even if null or empty
+        summary += `**Parent Task ID:** ${task.hierarchy.parent_task_id || 'None (this is a top-level task)'}\n`;
+
+        // Always show subtask IDs (empty array if no subtasks)
+        if (task.subtask_ids && task.subtask_ids.length > 0) {
+          summary += `**Subtask IDs:** ${task.subtask_ids.join(', ')}\n`;
+        } else {
+          summary += `**Subtask IDs:** None (this task has no subtasks)\n`;
+        }
+
+        summary += `\n`;
 
         // Add description
         summary += `## Description\n\n${task.description || 'No description'}\n\n`;
+
+        // Add subtasks if available
+        if (task.subtasks && task.subtasks.length > 0) {
+          summary += `## Subtasks\n\n`;
+          task.subtasks.forEach(subtask => {
+            summary += `- **${subtask.name}** (ID: ${subtask.id})\n`;
+            summary += `  Status: ${subtask.status ? subtask.status.status : 'Unknown'}\n`;
+            if (subtask.description) {
+              summary += `  Description: ${subtask.description.substring(0, 100)}${subtask.description.length > 100 ? '...' : ''}\n`;
+            }
+          });
+          summary += `\n`;
+        }
 
         // Add comments
         summary += `## Comments\n\n${result.formattedComments}\n\n`;
@@ -244,7 +271,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ...result,
             list_id: task.hierarchy.list_id,
             workspace_id: task.hierarchy.workspace_id,
-            folder_id: task.hierarchy.folder_id
+            folder_id: task.hierarchy.folder_id,
+            parent_task_id: task.hierarchy.parent_task_id || null,  // Explicitly include, even if null
+            subtask_ids: task.subtask_ids || [],                   // Explicitly include, even if empty
+            is_subtask: task.hierarchy.parent_task_id ? true : false,  // Helper flag to easily identify subtasks
+            has_subtasks: (task.subtask_ids && task.subtask_ids.length > 0) ? true : false  // Helper flag to easily identify parent tasks
           },
           content: [
             {
