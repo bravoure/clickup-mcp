@@ -71,11 +71,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "get-task-comments",
-        description: "Get all comments from a task",
+        description: "Get all comments from a task (including threaded replies)",
         inputSchema: {
           type: "object",
           properties: {
-            task_id: { type: "string", description: "The ID of the task" }
+            task_id: { type: "string", description: "The ID of the task" },
+            include_replies: { type: "boolean", description: "Include threaded replies (default: true)" }
           },
           required: ["task_id"]
         }
@@ -356,8 +357,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     } else if (name === "get-task-comments") {
       try {
         console.log(`Getting comments for task ${args.task_id}`);
-        const comments = await clickupClient.getTaskComments(args.task_id);
+        const includeReplies = args.include_replies !== false; // default true
+        const comments = await clickupClient.getTaskComments(args.task_id, includeReplies);
         console.log(`Found ${comments.length} comments`);
+
+        // Helper to format a single comment or reply
+        const formatOne = (c, indent = 0) => {
+          const pad = ' '.repeat(indent);
+          const header = `${pad}**${c.user ? c.user.username : 'Unknown user'}** (${new Date(c.date).toLocaleString()}):`;
+          const body = `${pad}${c.text}`;
+          return `${header}\n${body}`;
+        };
 
         // Format the comments for better readability
         let formattedComments = '';
@@ -365,7 +375,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           formattedComments = 'No comments found for this task.';
         } else {
           formattedComments = comments.map(comment => {
-            return `**${comment.user ? comment.user.username : 'Unknown user'}** (${new Date(comment.date).toLocaleString()}):\n${comment.text}\n`;
+            const main = formatOne(comment, 0);
+            const replies = includeReplies ? (comment.replies || []).map(r => formatOne(r, 2)).join('\n') : '';
+            return replies ? `${main}\n${replies}` : main;
           }).join('\n---\n\n');
         }
 

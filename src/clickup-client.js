@@ -67,20 +67,30 @@ export class ClickUpClient {
       console.log(`Getting task with details for ${taskId}`);
       const task = await this.getTask(taskId, includeSubtasks);
 
-      // Get the comments
+      // Get the comments (with threaded replies)
       console.log(`Getting comments for task ${taskId}`);
-      const comments = await this.getTaskComments(taskId);
+      const comments = await this.getTaskComments(taskId, true);
 
       // Add comments to the task
       task.processed_comments = comments;
 
-      // Format the comments for better readability
+      // Helper to format a single comment or reply
+      const formatOne = (c, indent = 0) => {
+        const pad = ' '.repeat(indent);
+        const header = `${pad}**${c.user ? c.user.username : 'Unknown user'}** (${new Date(c.date).toLocaleString()}):`;
+        const body = `${pad}${c.text}`;
+        return `${header}\n${body}`;
+      };
+
+      // Format the comments with their replies
       let formattedComments = '';
       if (comments.length === 0) {
         formattedComments = 'No comments found for this task.';
       } else {
         formattedComments = comments.map(comment => {
-          return `**${comment.user ? comment.user.username : 'Unknown user'}** (${new Date(comment.date).toLocaleString()}):\n${comment.text}\n`;
+          const main = formatOne(comment, 0);
+          const replies = (comment.replies || []).map(r => formatOne(r, 2)).join('\n');
+          return replies ? `${main}\n${replies}` : main;
         }).join('\n---\n\n');
       }
 
@@ -408,9 +418,11 @@ export class ClickUpClient {
   }
 
   /**
-   * Get comments for a task
+   * Get comments for a task (optionally with threaded replies)
+   * @param {string} taskId
+   * @param {boolean} includeReplies - whether to also fetch replies for each comment (default: true)
    */
-  async getTaskComments(taskId) {
+  async getTaskComments(taskId, includeReplies = true) {
     try {
       // Log the request details
       const url = `/task/${taskId}/comment`;
@@ -432,10 +444,37 @@ export class ClickUpClient {
         } : null,
         date: new Date(parseInt(comment.date)).toISOString(),
         reactions: comment.reactions || [],
-        attachments: comment.attachments || []
+        attachments: comment.attachments || [],
+        // these will be filled when includeReplies=true
+        replies: undefined,
+        has_replies: undefined,
+        reply_count: undefined
       }));
 
-      return processedComments;
+      if (!includeReplies || processedComments.length === 0) {
+        // even if we don't fetch replies, add simple indicators if present on API objects
+        return processedComments.map((pc) => ({
+          ...pc,
+          // ClickUp API does not expose reply counts on the task comments endpoint,
+          // so without fetching we cannot be certain. Keep undefined to signal unknown.
+          has_replies: undefined,
+          reply_count: undefined
+        }));
+      }
+
+      // Fetch threaded replies for each top-level comment
+      const commentsWithReplies = await Promise.all(processedComments.map(async (pc, idx) => {
+        try {
+          const parentId = comments[idx].id;
+          const replies = await this.getThreadedComments(parentId);
+          return { ...pc, replies, has_replies: replies.length > 0, reply_count: replies.length };
+        } catch (e) {
+          console.warn(`Failed to fetch replies for comment ${comments[idx].id}: ${e.message}`);
+          return { ...pc, replies: [], has_replies: false, reply_count: 0 };
+        }
+      }));
+
+      return commentsWithReplies;
     } catch (error) {
       console.error(`API error in getTaskComments: ${error.message}`);
       if (error.response) {
@@ -443,6 +482,52 @@ export class ClickUpClient {
         console.error(`Response data: ${JSON.stringify(error.response.data)}`);
       }
       throw new Error(`Error fetching task comments: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get threaded replies for a parent comment
+   * @param {string} commentId - the parent comment ID
+   */
+  async getThreadedComments(commentId) {
+    try {
+      const url = `/comment/${commentId}/reply`;
+      console.log(`Making API request to: ${this.client.defaults.baseURL}${url}`);
+      const response = await this.client.get(url);
+      console.log(`API response status: ${response.status}`);
+
+      // Normalize potential response shapes
+      let raw = [];
+      if (Array.isArray(response.data)) {
+        raw = response.data;
+      } else if (Array.isArray(response.data.comments)) {
+        raw = response.data.comments;
+      } else if (Array.isArray(response.data.replies)) {
+        raw = response.data.replies;
+      }
+
+      const processed = raw.map(reply => ({
+        id: reply.id,
+        text: reply.comment_text,
+        user: reply.user ? {
+          id: reply.user.id,
+          username: reply.user.username,
+          email: reply.user.email
+        } : null,
+        date: new Date(parseInt(reply.date)).toISOString(),
+        reactions: reply.reactions || [],
+        attachments: reply.attachments || [],
+        parent_comment_id: commentId
+      }));
+
+      return processed;
+    } catch (error) {
+      console.error(`API error in getThreadedComments: ${error.message}`);
+      if (error.response) {
+        console.error(`Response status: ${error.response.status}`);
+        console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Error fetching threaded comments: ${error.message}`);
     }
   }
 
